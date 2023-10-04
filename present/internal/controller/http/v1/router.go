@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"present/present/config"
+	mw "present/present/internal/controller/http/v1/middleware"
 )
 
 func NewRouter(cfg *config.Config, l *slog.Logger) http.Handler {
@@ -14,7 +15,7 @@ func NewRouter(cfg *config.Config, l *slog.Logger) http.Handler {
 	// middleware
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
-	router.Use(middleware.Logger)
+	router.Use(mw.Logger(l))
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
