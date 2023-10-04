@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"present/present/config"
+	v1 "present/present/internal/controller/http/v1"
 	"present/present/internal/slogpretty"
 	"present/present/pkg/httpserver"
 	"present/present/pkg/postgres"
@@ -41,7 +42,7 @@ func Run(cfg *config.Config) {
 	// rabbitmq rpc server
 
 	// HTTP server
-	router := createRouter(cfg)
+	router := v1.NewRouter(cfg, log)
 	log.Info("starting server", slog.String("address", cfg.HTTP.Host+":"+cfg.HTTP.Port))
 
 	httpServer := httpserver.New(router, httpserver.Addr(cfg.HTTP.Host, cfg.HTTP.Port))
