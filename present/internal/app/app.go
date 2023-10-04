@@ -1,19 +1,75 @@
 package app
 
 import (
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"present/present/config"
+	"present/present/internal/slogpretty"
 	"present/present/pkg/httpserver"
 	"present/present/pkg/postgres"
 	"syscall"
 )
+
+const (
+	envLocal = "local"
+	envDev   = "dev"
+	envProd  = "prod"
+)
+
+func Run(cfg *config.Config) {
+	// logger
+	log := setupLogger(cfg.Env)
+	log.Info("starting url shortener", slog.String("env", cfg.Env))
+	log.Debug("debug messages are enabled")
+
+	// repository
+	pg, err := postgres.New(
+		postgres.GetDSN(cfg),
+		postgres.MaxPoolSize(cfg.PG.PoolMax),
+	)
+	if err != nil {
+		log.Error("app - Run - postgres.New:", "error", err)
+	}
+	defer pg.Close()
+
+	// use case
+
+	// rabbitmq rpc server
+
+	// HTTP server
+	router := createRouter(cfg)
+	log.Info("starting server", slog.String("address", cfg.HTTP.Host+":"+cfg.HTTP.Port))
+
+	httpServer := httpserver.New(router, httpserver.Addr(cfg.HTTP.Host, cfg.HTTP.Port))
+
+	// waiting signal
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case s := <-interrupt:
+		log.Info("app - Run - signal: ", "signal", s.String())
+	case err = <-httpServer.Notify():
+		log.Error("app - Run - httpServer.Notify:", "error", err)
+		//case err = <-rmqServer.Notify():
+		//	l.Error(fmt.Errorf("app - Run - rmqServer.Notify: %w", err))
+	}
+
+	// shutdown
+	err = httpServer.Shutdown()
+	if err != nil {
+		log.Error("app - Run - httpServer.Shutdown:", "error", err)
+	}
+
+	//err = rmqServer.Shutdown()
+	//if err != nil {
+	//	l.Error(fmt.Errorf("app - Run - rmqServer.Shutdown: %w", err))
+	//}
+}
 
 func createRouter(cfg *config.Config) http.Handler {
 	router := chi.NewRouter()
@@ -37,54 +93,39 @@ func createRouter(cfg *config.Config) http.Handler {
 	return router
 }
 
-func Run(cfg *config.Config) {
-	// logger
-	// repository
-	pg, err := postgres.New(
-		postgres.GetDSN(cfg),
-		postgres.MaxPoolSize(cfg.PG.PoolMax),
-	)
-	if err != nil {
-		log.Fatal(fmt.Errorf("app - Run - postgres.New: %w", err))
-	}
-	defer pg.Close()
+func setupLogger(env string) *slog.Logger {
+	var log *slog.Logger
 
-	// use case
-
-	// rabbitmq rpc server
-
-	// HTTP server
-	router := createRouter(cfg)
-	//log.Info("starting server", slog.String("address", cfg.Address))
-	log.Println("starting server", slog.String("address", cfg.HTTP.Host+":"+cfg.HTTP.Port))
-
-	httpServer := httpserver.New(router, httpserver.Addr(cfg.HTTP.Host, cfg.HTTP.Port))
-
-	// waiting signal
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
-
-	select {
-	case s := <-interrupt:
-		log.Println("app - Run - signal: " + s.String())
-	//case s := <-interrupt:
-	//	l.Info("app - Run - signal: " + s.String())
-	case err = <-httpServer.Notify():
-		log.Println(fmt.Errorf("app - Run - httpServer.Notify: %w", err))
-		//l.Error(fmt.Errorf("app - Run - httpServer.Notify: %w", err))
-		//case err = <-rmqServer.Notify():
-		//	l.Error(fmt.Errorf("app - Run - rmqServer.Notify: %w", err))
+	switch env {
+	case envLocal:
+		//log = slog.New(slog.NewTextHandler(
+		//	os.Stdout,
+		//	&slog.HandlerOptions{Level: slog.LevelDebug},
+		//))
+		log = setupPrettySlog()
+	case envDev:
+		log = slog.New(slog.NewJSONHandler(
+			os.Stdout,
+			&slog.HandlerOptions{Level: slog.LevelDebug},
+		))
+	case envProd:
+		log = slog.New(slog.NewJSONHandler(
+			os.Stdout,
+			&slog.HandlerOptions{Level: slog.LevelInfo},
+		))
 	}
 
-	// shutdown
-	err = httpServer.Shutdown()
-	if err != nil {
-		log.Println(fmt.Errorf("app - Run - httpServer.Shutdown: %w", err))
-		//l.Error(fmt.Errorf("app - Run - httpServer.Shutdown: %w", err))
+	return log
+}
+
+func setupPrettySlog() *slog.Logger {
+	opts := slogpretty.PrettyHandlerOptions{
+		SlogOpts: &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		},
 	}
 
-	//err = rmqServer.Shutdown()
-	//if err != nil {
-	//	l.Error(fmt.Errorf("app - Run - rmqServer.Shutdown: %w", err))
-	//}
+	handler := opts.NewPrettyHandler(os.Stdout)
+
+	return slog.New(handler)
 }
