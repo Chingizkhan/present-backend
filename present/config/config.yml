@@ -1,6 +1,18 @@
 env: "local"
 storage_path: "./storage/storage.db"
+
 http:
-  address: "localhost:8083"
+  host: "localhost"
+  port: "8083"
   timeout: 4s
   idle_timeout: 60s
+  user: "user"
+  password: "password"
+
+postgres:
+  pool_max: 2
+  user: "app"
+  password: "secret"
+  host: "localhost"
+  port: "5432"
+  name: "app"
