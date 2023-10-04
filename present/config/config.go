@@ -14,7 +14,10 @@ type (
 	}
 
 	HTTP struct {
-		Address     string        `yaml:"address"       env-default:"localhost:8080"`
+		Host        string        `yaml:"host"          env-default:"localhost"`
+		Port        string        `yaml:"port"          env-default:":8080"`
+		User        string        `yaml:"user"          env-required:"true"`
+		Password    string        `yaml:"password"      env-required:"true"`
 		Timeout     time.Duration `yaml:"timeout"       env-default:"4s"`
 		IdleTimeout time.Duration `yaml:"idle_timeout"  env-default:"60s"`
 	}
