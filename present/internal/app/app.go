@@ -10,6 +10,8 @@ import (
 	"present/present/config"
 	v1 "present/present/internal/controller/http/v1"
 	"present/present/internal/slogpretty"
+	"present/present/internal/usecase"
+	"present/present/internal/usecase/repo"
 	"present/present/pkg/httpserver"
 	"present/present/pkg/postgres"
 	"syscall"
@@ -38,11 +40,12 @@ func Run(cfg *config.Config) {
 	defer pg.Close()
 
 	// use case
+	productUseCase := usecase.New(repo.New(pg))
 
 	// rabbitmq rpc server
 
 	// HTTP server
-	router := v1.NewRouter(cfg, log)
+	router := v1.NewRouter(cfg, log, productUseCase)
 	log.Info("starting server", slog.String("address", cfg.HTTP.Host+":"+cfg.HTTP.Port))
 
 	httpServer := httpserver.New(router, httpserver.Addr(cfg.HTTP.Host, cfg.HTTP.Port))
