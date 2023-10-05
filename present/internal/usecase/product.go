@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"github.com/google/uuid"
 	"present/present/internal/entity"
 )
 
@@ -16,10 +17,10 @@ func New(r ProductRepo) *ProductUseCase {
 	}
 }
 
-func (uc *ProductUseCase) Find(ctx context.Context) ([]entity.Product, error) {
+func (uc *ProductUseCase) Find(ctx context.Context, id uuid.UUID) ([]entity.Product, error) {
 	const op = "ProductUseCase - Find"
 
-	products, err := uc.repo.Find(ctx)
+	products, err := uc.repo.Find(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("%s - uc.repo.Find: %w", op, err)
 	}
@@ -28,6 +29,13 @@ func (uc *ProductUseCase) Find(ctx context.Context) ([]entity.Product, error) {
 }
 
 func (uc *ProductUseCase) Save(ctx context.Context, p entity.Product) error {
+	const op = "ProductUseCase - Save"
+
+	err := uc.repo.Save(ctx, p)
+	if err != nil {
+		return fmt.Errorf("%s - uc.repo.Save: %w", op, err)
+	}
+
 	return nil
 }
 

@@ -36,6 +36,7 @@ func Run(cfg *config.Config) {
 	)
 	if err != nil {
 		log.Error("app - Run - postgres.New:", "error", err)
+		os.Exit(1)
 	}
 	defer pg.Close()
 

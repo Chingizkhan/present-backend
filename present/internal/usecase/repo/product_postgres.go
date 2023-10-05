@@ -3,11 +3,16 @@ package repo
 import (
 	"context"
 	"fmt"
+	"github.com/google/uuid"
+	"log"
 	"present/present/internal/entity"
 	"present/present/pkg/postgres"
 )
 
-const _defaultEntityCap = 100
+const (
+	_defaultEntityCap = 100
+	tableName         = "product"
+)
 
 type ProductRepo struct {
 	*postgres.Postgres
@@ -17,18 +22,22 @@ func New(pg *postgres.Postgres) *ProductRepo {
 	return &ProductRepo{pg}
 }
 
-func (r *ProductRepo) Find(ctx context.Context) ([]entity.Product, error) {
+func (r *ProductRepo) Find(ctx context.Context, id uuid.UUID) ([]entity.Product, error) {
 	const op = "ProductRepo - Find"
 
-	sql, _, err := r.Builder.
+	sql, args, err := r.Builder.
 		Select("*").
-		From("product").
+		From(tableName).
+		Where("id = ?", id.String()).
 		ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("%s - r.Builder: %w", op, err)
 	}
 
-	rows, err := r.Pool.Query(ctx, sql)
+	log.Println("sql:", sql)
+	log.Printf("args: %#v", args)
+
+	rows, err := r.Pool.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, fmt.Errorf("%s - r.Pool.Query: %w", op, err)
 	}
@@ -39,7 +48,7 @@ func (r *ProductRepo) Find(ctx context.Context) ([]entity.Product, error) {
 	for rows.Next() {
 		e := entity.Product{}
 
-		if err := rows.Scan(&e.Id); err != nil {
+		if err := rows.Scan(&e.Id, &e.Name, &e.Brand); err != nil {
 			return nil, fmt.Errorf("%s - rows.Scan: %w", op, err)
 		}
 
@@ -50,6 +59,25 @@ func (r *ProductRepo) Find(ctx context.Context) ([]entity.Product, error) {
 }
 
 func (r *ProductRepo) Save(ctx context.Context, p entity.Product) error {
+	const op = "ProductRepo - Save"
+
+	sql, args, err := r.Builder.
+		Insert(tableName).
+		Columns("id, name, brand").
+		Values(p.Id, p.Name, p.Brand).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("%s - r.Builder: %w", op, err)
+	}
+
+	log.Println("sql:", sql)
+	log.Printf("args: %#v", args)
+
+	_, err = r.Pool.Exec(ctx, sql, args...)
+	if err != nil {
+		return fmt.Errorf("%s - r.Pool.Exec: %w", op, err)
+	}
+
 	return nil
 }
 
