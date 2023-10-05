@@ -1,10 +1,7 @@
 package app
 
 import (
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"present/present/config"
@@ -74,28 +71,6 @@ func Run(cfg *config.Config) {
 	//if err != nil {
 	//	l.Error(fmt.Errorf("app - Run - rmqServer.Shutdown: %w", err))
 	//}
-}
-
-func createRouter(cfg *config.Config) http.Handler {
-	router := chi.NewRouter()
-
-	// middleware
-	router.Use(middleware.RequestID)
-	router.Use(middleware.RealIP)
-	router.Use(middleware.Logger)
-	router.Use(middleware.Recoverer)
-	router.Use(middleware.URLFormat)
-
-	router.Route("/url", func(r chi.Router) {
-		r.Use(middleware.BasicAuth("present-backend", map[string]string{
-			cfg.HTTP.User: cfg.HTTP.Password,
-		}))
-		//r.Post("/", save.New(log, storage))
-	})
-
-	//router.Get("/{alias}", redirect.New(log, storage))
-
-	return router
 }
 
 func setupLogger(env string) *slog.Logger {

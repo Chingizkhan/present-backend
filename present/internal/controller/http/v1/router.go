@@ -10,7 +10,7 @@ import (
 	"present/present/internal/usecase"
 )
 
-func NewRouter(cfg *config.Config, l *slog.Logger, p *usecase.ProductUseCase) http.Handler {
+func NewRouter(cfg *config.Config, l *slog.Logger, u usecase.Product) http.Handler {
 	router := chi.NewRouter()
 
 	// middleware
@@ -21,7 +21,7 @@ func NewRouter(cfg *config.Config, l *slog.Logger, p *usecase.ProductUseCase) ht
 	router.Use(middleware.URLFormat)
 
 	{
-		newProductRoutes(router, cfg, p, l)
+		newProductRoutes(router, cfg, u, l)
 	}
 
 	return router
