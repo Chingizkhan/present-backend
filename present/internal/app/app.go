@@ -6,23 +6,17 @@ import (
 	"os/signal"
 	"present/present/config"
 	v1 "present/present/internal/controller/http/v1"
-	"present/present/internal/slogpretty"
 	"present/present/internal/usecase"
 	"present/present/internal/usecase/repo"
 	"present/present/pkg/httpserver"
+	"present/present/pkg/logger"
 	"present/present/pkg/postgres"
 	"syscall"
 )
 
-const (
-	envLocal = "local"
-	envDev   = "dev"
-	envProd  = "prod"
-)
-
 func Run(cfg *config.Config) {
 	// logger
-	log := setupLogger(cfg.Env)
+	log := logger.SetupLogger(cfg.Env)
 	log.Info("starting url shortener", slog.String("env", cfg.Env))
 	log.Debug("debug messages are enabled")
 
@@ -32,7 +26,7 @@ func Run(cfg *config.Config) {
 		postgres.MaxPoolSize(cfg.PG.PoolMax),
 	)
 	if err != nil {
-		log.Error("app - Run - postgres.New:", "error", err)
+		log.Error("app - Run - postgres.New:", logger.Err(err))
 		os.Exit(1)
 	}
 	defer pg.Close()
@@ -56,7 +50,7 @@ func Run(cfg *config.Config) {
 	case s := <-interrupt:
 		log.Info("app - Run - signal: ", "signal", s.String())
 	case err = <-httpServer.Notify():
-		log.Error("app - Run - httpServer.Notify:", "error", err)
+		log.Error("app - Run - httpServer.Notify:", logger.Err(err))
 		//case err = <-rmqServer.Notify():
 		//	l.Error(fmt.Errorf("app - Run - rmqServer.Notify: %w", err))
 	}
@@ -64,48 +58,11 @@ func Run(cfg *config.Config) {
 	// shutdown
 	err = httpServer.Shutdown()
 	if err != nil {
-		log.Error("app - Run - httpServer.Shutdown:", "error", err)
+		log.Error("app - Run - httpServer.Shutdown:", logger.Err(err))
 	}
 
 	//err = rmqServer.Shutdown()
 	//if err != nil {
 	//	l.Error(fmt.Errorf("app - Run - rmqServer.Shutdown: %w", err))
 	//}
-}
-
-func setupLogger(env string) *slog.Logger {
-	var log *slog.Logger
-
-	switch env {
-	case envLocal:
-		//log = slog.New(slog.NewTextHandler(
-		//	os.Stdout,
-		//	&slog.HandlerOptions{Level: slog.LevelDebug},
-		//))
-		log = setupPrettySlog()
-	case envDev:
-		log = slog.New(slog.NewJSONHandler(
-			os.Stdout,
-			&slog.HandlerOptions{Level: slog.LevelDebug},
-		))
-	case envProd:
-		log = slog.New(slog.NewJSONHandler(
-			os.Stdout,
-			&slog.HandlerOptions{Level: slog.LevelInfo},
-		))
-	}
-
-	return log
-}
-
-func setupPrettySlog() *slog.Logger {
-	opts := slogpretty.PrettyHandlerOptions{
-		SlogOpts: &slog.HandlerOptions{
-			Level: slog.LevelDebug,
-		},
-	}
-
-	handler := opts.NewPrettyHandler(os.Stdout)
-
-	return slog.New(handler)
 }
