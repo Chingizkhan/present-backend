@@ -36,7 +36,7 @@ func New(handler http.Handler, opts ...Option) *Server {
 	}
 
 	for _, opt := range opts {
-		opt(s)
+		opt(s)i
 	}
 
 	s.start()
